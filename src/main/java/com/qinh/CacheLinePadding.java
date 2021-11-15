@@ -1,7 +1,7 @@
 package com.qinh;
 
 import org.junit.Test;
-import sun.misc.Contended;
+//import sun.misc.Contended;
 
 /**
  * 缓存行对齐测试
