@@ -286,8 +286,75 @@ inter:lfence:读屏障，sfence:写屏障 ，mfence:读写屏障
 
 ![image-20211115225459507](assets\image-20211115225459507.png)
 
+原语比lock指令效率要高
+
+CPU层面是原语、Lock指令
+
 
 
 ![image-20211115230136105](assets\image-20211115230136105.png)
 
 ![image-20211115230201745](assets\image-20211115230201745.png)
+
+
+
+#### JVM规范
+
+![1637053971947](assets/1637053971947.png)
+
+#### volatile在JVM层面的实现，在CPU层面还是Lock指令
+
+![1637054123689](assets/1637054123689.png)
+
+
+
+volatile修饰引用类型时，读写引用类型也会加屏障么？（官方未明确说明，自己做实现）
+
+对CPU层面来说，只要两个指令没有依赖关系就会发生指令重排序
+
+对于JVM来说，重排序必须遵守happens-before原则
+
+
+
+![1637054556222](assets/1637054556222.png)
+
+
+
+![1637054840855](assets/1637054840855.png)
+
+
+
+#### 总结：禁止乱序
+
+##### CPU层面：
+
+​	intel -> 原语（lfence:读屏障，sfence:写屏障 ，mfence:读写屏障）或者锁总线
+
+##### JVM层面：
+
+​	8个happens-before原则 4个内存屏障（StoreStore LoadLoad StoreLoad LoadStore）
+
+##### as-if-serial：
+
+​	不管硬件什么顺序，单线程执行结果不会改变，看上去像是serial
+
+
+
+### 合并写
+
+write combing buffer 一般4字节  由于ALU速度太快，所以在写入L1的同时，写入一个WC Buffer ，满了之后，再直接更新到L2
+
+![1637055719097](assets/1637055719097.png)
+
+
+
+### NUMA
+
+UMA：多个CPU共享同一个内存
+
+![1637056417475](assets/1637056417475.png)
+
+
+
+
+
