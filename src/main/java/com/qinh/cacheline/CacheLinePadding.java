@@ -1,4 +1,4 @@
-package com.qinh;
+package com.qinh.cacheline;
 
 import org.junit.Test;
 //import sun.misc.Contended;

@@ -1,4 +1,4 @@
-package com.qinh;
+package com.qinh.cacheline;
 
 import sun.misc.Contended;
 
