@@ -129,11 +129,9 @@ cpu和内存是计算机的核心
 
 ![1636686528188](assets/1636686528188.png)
 
-```markdown
-context switch 线程上下文切换：将上一个正在运行的线程的寄存器和指令存储起来，把下一个线程需要的数据放过来
-切换是需要消耗cpu，效率比较低（一个核心对应一个线程）
-超线程：一个核心对应两个线程，一个运算单元对应多套寄存器和程序计数器
-```
+**context switch 线程上下文切换：将上一个正在运行的线程的寄存器和指令存储起来，把下一个线程需要的数据放过来**
+**切换是需要消耗cpu，效率比较低（一个核心对应一个线程）**
+**超线程：一个核心对应两个线程，一个运算单元对应多套寄存器和程序计数器**
 
 
 
@@ -450,6 +448,8 @@ linux：只用了两个级别，ring 0 ，ring 3，在内核态时可以访问ri
 
 目前2020 3 22 支持内置纤程的语言：Kotlin Scala Go Python(lib) ...Java?
 
+目前Java中对纤程的支持：没有内置
+
 ![1637140152923](assets/1637140152923.png)
 
 JVM（Hotspot）级别的线程和操作系统的线程是一一对应的
@@ -458,3 +458,177 @@ JVM（Hotspot）级别的线程和操作系统的线程是一一对应的
 
 
 
+测试代码：
+
+```java
+public class FiberTest {
+    
+    public static void main(String[] args) throws Exception {
+        long start = System.currentTimeMillis();
+
+        int size = 10000;
+
+        CountDownLatch latch = new CountDownLatch(size);
+
+        for (int i = 0; i < size; i++) {
+            /*new Thread(() -> {
+                calc();
+                latch.countDown();
+            }).start();*/
+            Fiber<Void> fiber = new Fiber<>((SuspendableRunnable) () -> {
+                calc();
+                latch.countDown();
+            });
+            fiber.start();
+        }
+
+        latch.await();
+
+        System.out.println("执行完耗时: " + (System.currentTimeMillis() - start));
+    }
+
+    private static void calc(){
+        int result = 0;
+        for (int i = 0; i < 10000; i++) {
+            for (int j = 0; j < 200; j++) {
+                result += j;
+            }
+        }
+    }
+}
+```
+
+目前是10000个纤程，如果想提升效率，可以分为10份，10个操作系统级别的线程，每个线程创建1000个纤程
+
+纤程的应用场景：1、很短的计算任务，不需要和内核打交道，2、并发量比较高的时候
+
+
+
+linux中的进程有一个内核数据结构（PCB）
+
+![1637218863308](assets/1637218863308.png)
+
+
+
+![1637219161610](assets/1637219161610.png)
+
+
+
+### 进程的管理
+
+#### 进程创建和启动
+
+![1637219278757](assets/1637219278757.png)
+
+
+
+#### 僵尸进程 孤儿进程
+
+![1637219386074](assets/1637219386074.png)
+
+
+
+zombie.c
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <assert.h>
+#include <sys/types.h>
+
+int main() {
+    pid_t pid = fork();
+    if(0 == pid){
+        printf("child id is %d\n",getpid());
+        printf("parent id is %d\n",getppid());
+    }else{
+        while(1){}
+    }
+}
+```
+
+
+
+![1637219633698](assets/1637219633698.png)
+
+
+
+orphan.c
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <assert.h>
+#include <sys/types.h>
+
+int main() {
+    pid_t pid = fork();
+    if(0 == pid){
+        printf("parent id is %d\n",getppid());
+        sleep(10);
+        printf("parent id is %d\n",getppid());
+    }else{
+        printf("parent id is %d\n",getpid());
+        sleep(5);
+        exit(0);
+    }
+}
+```
+
+
+
+### 进程调度
+
+![1637221295355](assets/1637221295355.png)
+
+
+
+
+
+![1637221308479](assets/1637221308479.png)
+
+
+
+linux2.6 采用CFS Completely Fair Scheduler
+
+按优先级分配时间片的比例，记录每个进程的执行时间，如果有一个进程执行时间不到它应该分配的比例，优先执行（按时间补偿）
+
+![1637221529748](assets/1637221529748.png)
+
+
+
+#### 进程调度基本概念
+
+![1637222250197](assets/1637222250197.png)
+
+#### Linux默认的调度策略
+
+实时进程（c语言创建），优先级分高低 -> FIFO ，优先级一样的->RR（Round Robin）
+
+普通进程 -> CFS
+
+![1637222551281](assets/1637222551281.png)
+
+
+
+### 中断
+
+操作系统级别的中断
+
+摁下一个键盘按键后，会将当前电信号交给中断控制器，中断控制器会告诉CPU有一个键盘信号来了，CPU会在某个固定位置找到执行程序，这个执行程序会通知kernel，根据这个中断信号，在中断处理程序中找到对应的程序，
+
+![1637224665574](assets/1637224665574.png)
+
+中断分为：硬中断，软中断
+
+
+
+![1637225772692](assets/1637225772692.png)
+
+
+
+高并发的核心处理：分而治之
